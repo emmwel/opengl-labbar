@@ -204,8 +204,6 @@ void updateWorld()
 
 							// ball[i].X = VectorAdd(ball[i].X, ScalarMult(Normalize(relative_pos), (2*kBallSize - dist)/2));
 							// ball[j].X = VectorAdd(ball[j].X, ScalarMult(Normalize(relative_pos), -(2*kBallSize - dist)/2));
-
-
 						}
         }
 
@@ -332,10 +330,10 @@ void init()
 		ball[i].X = SetVector(0.0, 0.0, 0.0);
 		ball[i].P = SetVector(((float)(i % 13))/ 50.0, 0.0, ((float)(i % 15))/50.0);
 		ball[i].R = IdentityMatrix();
-		ball[i].J = SetMat4(u.x, u.y, u.z, 0,
-	                      v.x, m/2, v.z, 0,
-	                      n.x, n.y, n.z, 0,
-	                      0,   0,   0,   1);
+		// ball[i].J = SetMat4(u.x, u.y, u.z, 0,
+	  //                     v.x, m/2, v.z, 0,
+	  //                     n.x, n.y, n.z, 0,
+	  //                     0,   0,   0,   1);
 	}
 	// avvikande massa
 	// ball[0].mass = 10.0;
