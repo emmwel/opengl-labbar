@@ -77,7 +77,8 @@ typedef struct
 
   vec3 F, T; // accumulated force and torque
 
-	mat4 J, Ji; //We could have these but we can live without them for spheres.
+	//mat4 J, Ji; //We could have these but we can live without them for spheres.
+	GLfloat J_scalar;
   vec3 omega; // Angular velocity
   vec3 v; // Change in velocity
 
@@ -103,7 +104,7 @@ Material ballMt = { { 1.0, 1.0, 1.0, 1.0 }, { 1.0, 1.0, 1.0, 0.0 },
                 };
 
 
-enum {kNumBalls = 4}; // Change as desired, max 16
+enum {kNumBalls = 16}; // Change as desired, max 16
 
 //------------------------------Globals---------------------------------
 ModelTexturePair tableAndLegs, tableSurf;
@@ -183,17 +184,19 @@ void updateWorld()
 	}
 
 	// Detect collisions, calculate speed differences, apply forces
-	float elasticity = 1.0;
+	float elasticity = 0.7;
 	for (i = 0; i < kNumBalls; i++)
         for (j = i+1; j < kNumBalls; j++)
         {
             // YOUR CODE HERE
 						vec3 relative_pos = VectorSub(ball[i].X, ball[j].X);
+						ball[i].v = ScalarMult(ball[i].P, 1.0/ball[i].mass);
+						ball[j].v = ScalarMult(ball[j].P, 1.0/ball[j].mass);
 						vec3 v_rel = VectorSub(ball[i].v, ball[j].v);
-						float approaching = DotProduct(relative_pos, v_rel);
 						float dist = Norm(relative_pos);
 						vec3 n_hat = Normalize(relative_pos);
-						if (dist < 2 * kBallSize) {
+
+						if (dist < 2 * kBallSize && (DotProduct(ball[i].v, relative_pos) < DotProduct(ball[j].v, relative_pos))) {
 							//fprintf(stderr, "collide");
 							float v_rel_bef = DotProduct(v_rel, n_hat);
 							float j_ = (-1 * (elasticity + 1.0) * v_rel_bef) / ((1.0/ball[i].mass)+(1.0/ball[j].mass));
@@ -202,8 +205,6 @@ void updateWorld()
 							ball[i].F = VectorAdd(ball[i].F, ScalarMult(n_hat, j_ / deltaT));
 							ball[j].F = VectorAdd(ball[j].F, ScalarMult(n_hat, -j_ / deltaT));
 
-							// ball[i].X = VectorAdd(ball[i].X, ScalarMult(Normalize(relative_pos), (2*kBallSize - dist)/2));
-							// ball[j].X = VectorAdd(ball[j].X, ScalarMult(Normalize(relative_pos), -(2*kBallSize - dist)/2));
 						}
         }
 
@@ -213,8 +214,15 @@ void updateWorld()
 	{
 		// YOUR CODE HERE
 		vec3 normal_ = {0.0, 1.0, 0.0};
-		vec3 axis = CrossProduct(normal_, ball[i].v);
-		ball[i].R = Mult(ArbRotate(axis, Norm(ball[i].v) * deltaT / kBallSize), ball[i].R);
+		// vec3 axis = CrossProduct(normal_, ball[i].v);
+		// ball[i].R = Mult(ArbRotate(axis, Norm(ball[i].v) * deltaT / kBallSize), ball[i].R);
+
+		vec3 ball_impact = ScalarMult(normal_, -kBallSize);
+		vec3 vel_floor = VectorAdd(ball[i].v, CrossProduct(ball[i].omega, ball_impact));
+		vec3 friction = ScalarMult(vel_floor, -1.5);
+
+		ball[i].F = VectorAdd(ball[i].F, friction);
+		ball[i].T = VectorAdd(ball[i].T, CrossProduct(ball_impact, friction));
 	}
 
 // Update state, follows the book closely
@@ -225,6 +233,7 @@ void updateWorld()
 
 		// Note: omega is not set. How do you calculate it?
 		// YOUR CODE HERE
+		ball[i].omega = ScalarMult(ball[i].L, 1/ball[i].J_scalar);
 
 //		v := P * 1/mass
 		ball[i].v = ScalarMult(ball[i].P, 1.0/(ball[i].mass));
@@ -324,16 +333,13 @@ void init()
     // Initialize ball data, positions etc
 	for (i = 0; i < kNumBalls; i++)
 	{
-		float m = ball[i].mass;
 		float r = kBallSize;
 		ball[i].mass = 1.0;
 		ball[i].X = SetVector(0.0, 0.0, 0.0);
 		ball[i].P = SetVector(((float)(i % 13))/ 50.0, 0.0, ((float)(i % 15))/50.0);
 		ball[i].R = IdentityMatrix();
-		// ball[i].J = SetMat4(u.x, u.y, u.z, 0,
-	  //                     v.x, m/2, v.z, 0,
-	  //                     n.x, n.y, n.z, 0,
-	  //                     0,   0,   0,   1);
+		ball[i].J_scalar = (ball[i].mass * r * r) / 3;
+
 	}
 	// avvikande massa
 	// ball[0].mass = 10.0;

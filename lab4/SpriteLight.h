@@ -30,6 +30,9 @@ typedef struct SpriteRec
 	// Add custom sprite data here as needed
 	FPoint avg_position;
 	FPoint avoidance;
+	FPoint speed_diff;
+	FPoint food_attraction;
+	GLuint type;
 } SpriteRec, *SpritePtr;
 
 // Globals: The sprite list, background texture and viewport dimensions (virtual or real pixels)
@@ -39,7 +42,8 @@ extern long gWidth, gHeight;
 
 // Functions
 TextureData *GetFace(char *fileName);
-struct SpriteRec *NewSprite(TextureData *f, GLfloat h, GLfloat v, GLfloat hs, GLfloat vs);
+struct SpriteRec *NewSprite(TextureData *f, GLfloat h, GLfloat v, GLfloat hs, GLfloat vs, GLuint t);
+void DeleteSpriteRoot();
 void HandleSprite(SpritePtr sp);
 void DrawSprite(SpritePtr sp);
 void DrawBackground();

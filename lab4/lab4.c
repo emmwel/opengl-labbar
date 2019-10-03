@@ -19,10 +19,13 @@
 #include <math.h>
 
 // L�gg till egna globaler h�r efter behov.
-GLfloat avg_h;
-GLfloat avg_v;
 GLfloat cohesion_weight = 0.001;
-GLfloat avoidance_weight = 0.005;
+GLfloat avoidance_weight = 0.3;
+GLfloat alignment_weight = 0.01;
+
+float getRandom(float max_, float min_) {
+	return (((float)rand()/(float)(RAND_MAX)) *  (max_ - min_)) + min_;
+}
 
 void SpriteBehavior() // Din kod!
 {
@@ -32,35 +35,53 @@ void SpriteBehavior() // Din kod!
 	// hastigheter och positioner, eller arbeta fr�n egna globaler.
 	SpritePtr spi = gSpriteRoot;
 	SpritePtr spj = spi->next;
-	avg_h = 0;
-	avg_v = 0;
 	int counter = 0;
-	GLfloat maxdist = 120;
-	GLfloat mindist = 40;
+	GLfloat maxdist = 150.0;
+	GLfloat mindist = 60.0;
+
 	while(spi != NULL)
 	{
 		spi->avg_position.h = 0;
 		spi->avg_position.v = 0;
-		spi->avoidance.h = 40;
-		spi->avoidance.v = 40;
+		spi->avoidance.h = 0;
+		spi->avoidance.v = 0;
+		spi->speed_diff.h = 0;
+		spi->speed_diff.v = 0;
+		spi->food_attraction.h = 0;
+		spi->food_attraction.v = 0;
 		counter = 0;
 		spj = gSpriteRoot;
+
 		while(spj != NULL){
 			if(spi != spj){
 				// Calculate distance to all boids j from the boid i
 				GLfloat dist = sqrt(
 					(spi->position.h-spj->position.h) * (spi->position.h-spj->position.h) +
 					(spi->position.v-spj->position.v) * (spi->position.v-spj->position.v));
-				if(dist < maxdist){
-					// fprintf(stderr, " BOP ");
-					// Sum the position of all boids within radius
-					spi->avg_position.h += spj->position.h;
-					spi->avg_position.v += spj->position.v;
-					++counter;
-					if(dist < mindist){
-						spi->avoidance.h += spi->position.h - spj->position.h;
-						spi->avoidance.v += spi->position.v - spj->position.v;
-					}
+
+				if (spj->type == 3 && dist < 50.0) {
+					DeleteSpriteRoot();
+					break;
+				}
+				if (spj->type == 3 && dist < 400) {
+					spi->food_attraction.h += (spj->position.h - spi->position.h); // (dist + 1);
+					spi->food_attraction.v += (spj->position.v - spi->position.v);// (dist + 1);
+				}
+
+				if(dist < maxdist && spi->type != 3 && spj->type != 3){
+
+						// Sum the position of all boids within radius
+						spi->avg_position.h += spj->position.h;
+						spi->avg_position.v += spj->position.v;
+						spi->speed_diff.h += spj->speed.h - spi->speed.h;
+						spi->speed_diff.v += spj->speed.v - spi->speed.v;
+						++counter;
+						if(dist < mindist){
+							// scale with distance
+							spi->avoidance.h += -(spj->position.h - spi->position.h) /(dist + 1);
+							spi->avoidance.v += -(spj->position.v - spi->position.v) / (dist + 1);
+						}
+
 				}
 			}
 			spj = spj->next;
@@ -73,38 +94,43 @@ void SpriteBehavior() // Din kod!
 		if(counter>0){
 			spi->avg_position.h /= counter;
 			spi->avg_position.v /= counter;
-			// spi->avoidance.h /= counter;
-			// spi->avoidance.v /= counter;
+			spi->avoidance.h /= counter;
+			spi->avoidance.v /= counter;
+			spi->speed_diff.h /= counter;
+			spi->speed_diff.v /= counter;
 		}
 		spi = spi->next;
 	}
-	// avg_h /= counter;
-	// avg_v /= counter;
-
-	// Print avg position
-	// char * buf_h[3];
-	// char * buf_v[3];
-	// gcvt(avg_h, 3, buf_h);
-	// gcvt(avg_v, 3, buf_v);
-	// fprintf(stderr, "Average position = (");
-	// fprintf(stderr, buf_h);
-	// fprintf(stderr, ",");
-	// fprintf(stderr, buf_v);
-	// fprintf(stderr, ")\n");
 
 	// Reset sp and rotate boids
 	spi = gSpriteRoot;
 	while(spi != NULL){
 		if(spi->avg_position.h > 0 || spi->avg_position.v > 0){
+			// add speed components
 			spi->speed.h += (spi->avg_position.h - spi->position.h) * cohesion_weight;
 			spi->speed.v += (spi->avg_position.v - spi->position.v) * cohesion_weight;
-			spi->speed.h += fmax(0, (mindist-spi->avoidance.h)) * avoidance_weight;
-			spi->speed.v += fmax(0, (mindist-spi->avoidance.v)) * avoidance_weight;
+			spi->speed.h += spi->avoidance.h * avoidance_weight;
+			spi->speed.v += spi->avoidance.v * avoidance_weight;
+			spi->speed.h += spi->speed_diff.h * alignment_weight;
+			spi->speed.v += spi->speed_diff.v * alignment_weight;
+			spi->speed.h += spi->food_attraction.h * 0.0005;
+			spi->speed.v += spi->food_attraction.v * 0.0005;
+
+			// add speed to position
 			spi->position.h += spi->speed.h;
 			spi->position.v += spi->speed.v;
 		}
+		if (spi->type == 0) {
+			float r_h = getRandom(0.3, -0.3);
+			float r_v = getRandom(0.3, -0.3);
+			spi->speed.h += r_h;
+			spi->speed.v += r_v;
+
+			//printf("%f\n", random());
+		}
 		spi = spi->next;
 	}
+
 }
 
 // Drawing routine
@@ -147,6 +173,15 @@ void Timer(int value)
 	glutPostRedisplay();
 }
 
+void TimerFood(int value)
+{
+	glutTimerFunc(6000, TimerFood, 0);
+	printf("he\n");
+	int h = getRandom(500.0, 0);
+	int v = getRandom(500.0, 0);
+	NewSprite(GetFace("bilder/mat.tga"), h, v, 0, 0, 3);
+}
+
 // Example of user controllable parameter
 float someValue = 0.0;
 
@@ -171,6 +206,7 @@ void Key(unsigned char key,
 
 void Init()
 {
+	// Type 0, 1, 2, 3
 	TextureData *sheepFace, *blackFace, *dogFace, *foodFace;
 
 	LoadTGATextureSimple("bilder/leaves.tga", &backgroundTexID); // Bakgrund
@@ -180,11 +216,11 @@ void Init()
 	dogFace = GetFace("bilder/dog.tga"); // En hund
 	foodFace = GetFace("bilder/mat.tga"); // Mat
 
-	NewSprite(sheepFace, 100, 200, 1, 1);
-	NewSprite(blackFace, 200, 100, 1.5, -1);
-	NewSprite(dogFace, 250, 200, -1, 1.5);
-	NewSprite(foodFace, 150, 200, 1, 1.5);
-	NewSprite(sheepFace, 150, 150, -1, -1.5);
+	NewSprite(sheepFace, 100, 200, 1, 1, 0);
+	NewSprite(sheepFace, 200, 100, 1.5, -1, 0);
+	NewSprite(sheepFace, 250, 200, -1, 1.5, 0);
+	NewSprite(sheepFace, 150, 200, 1, 1.5, 0);
+	NewSprite(blackFace, 150, 150, -1, -1.5, 1);
 }
 
 int main(int argc, char **argv)
@@ -197,6 +233,7 @@ int main(int argc, char **argv)
 
 	glutDisplayFunc(Display);
 	glutTimerFunc(20, Timer, 0); // Should match the screen synch
+	glutTimerFunc(20, TimerFood, 0); // Should match the screen synch
 	glutReshapeFunc(Reshape);
 	glutKeyboardFunc(Key);
 
